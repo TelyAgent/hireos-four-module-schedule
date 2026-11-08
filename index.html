@@ -1,0 +1,316 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>HireOS 四模块排期</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: one Gantt sheet — a day grid across Nov 1–23; module lanes on top, developer lanes below; the Nov 16–20 bug-fix window as a full-height band; a ledger and notes underneath. */
+:root{
+  --bg:#f3f5f8; --sheet:#ffffff; --ink:#18202b; --muted:#5d6878; --faint:#8e98a6; --line:#e1e6ee; --weekend:#eef1f6;
+  --iv:#0e7a88; --rs:#2f63c9; --wt:#7a4fc4; --jd:#b4651a; --cp:#b03a74;
+  --coral:#d4573f; --shaogang:#2f8a57; --fix:#c2410c; --fix-bg:#fff1e6;
+  --today:#d43c3c; --warn-bg:#fdf1de; --warn-ink:#8a5208;
+  --font-body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#10141b; --sheet:#171c25; --ink:#e6eaf1; --muted:#a2acbb; --faint:#6f7a8a; --line:#2a3240; --weekend:#1c222d;
+  --iv:#3fb7c6; --rs:#6f9cf2; --wt:#a888ec; --jd:#e39a52; --cp:#e57aab; --coral:#f0846d; --shaogang:#5cc489; --fix:#fb9a5b; --fix-bg:#33200f;
+  --today:#f06a6a; --warn-bg:#35280f; --warn-ink:#f0bd6a; color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --bg:#10141b; --sheet:#171c25; --ink:#e6eaf1; --muted:#a2acbb; --faint:#6f7a8a; --line:#2a3240; --weekend:#1c222d;
+  --iv:#3fb7c6; --rs:#6f9cf2; --wt:#a888ec; --jd:#e39a52; --cp:#e57aab; --coral:#f0846d; --shaogang:#5cc489; --fix:#fb9a5b; --fix-bg:#33200f;
+  --today:#f06a6a; --warn-bg:#35280f; --warn-ink:#f0bd6a; color-scheme:dark; }
+
+body{ background:var(--bg); color:var(--ink); font-family:var(--font-body); font-size:14px; line-height:1.55; }
+.wrap{ max-width:1180px; margin:0 auto; padding-block:28px 48px; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); display:flex; flex-direction:column; gap:20px; }
+h1{ font-size:24px; font-weight:700; margin:0; text-wrap:balance; letter-spacing:.01em; }
+.sub{ color:var(--muted); margin:4px 0 0; font-size:13.5px; }
+.legend{ display:flex; flex-wrap:wrap; gap:8px 18px; font-size:12.5px; color:var(--muted); align-items:center; }
+.lg{ display:inline-flex; align-items:center; gap:7px; }
+.sw{ width:22px; height:10px; border-radius:3px; background:var(--muted); }
+.sw.dev{ background:repeating-linear-gradient(135deg, color-mix(in srgb, var(--muted) 45%, transparent) 0 4px, transparent 4px 8px); border:1px solid color-mix(in srgb, var(--muted) 55%, transparent); }
+.sw.fix{ background:var(--fix-bg); border:1px solid color-mix(in srgb, var(--fix) 45%, transparent); }
+.dia{ width:10px; height:10px; transform:rotate(45deg); border:2px solid var(--muted); background:var(--sheet); }
+.dia.solid{ background:var(--muted); }
+.tl{ width:2px; height:14px; background:var(--today); }
+
+.sheet{ background:var(--sheet); border:1px solid var(--line); border-radius:12px; overflow-x:auto; }
+.gantt{ --cols:23; --lab:150px; min-width:900px; display:grid; grid-template-columns:var(--lab) repeat(var(--cols), minmax(30px,1fr)); position:relative; }
+.hd{ font-family:var(--font-mono); font-size:11.5px; color:var(--muted); text-align:center; padding:10px 0 8px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; line-height:1.3; }
+.hd b{ display:block; font-size:13px; color:var(--ink); font-weight:600; }
+.hd.we{ background:var(--weekend); }
+.hd.month{ text-align:left; padding-left:14px; font-family:var(--font-body); font-size:12px; color:var(--faint); letter-spacing:.06em; }
+.hd.is-today b{ color:var(--today); }
+.sec{ grid-column:1 / -1; font-size:11.5px; letter-spacing:.08em; color:var(--faint); padding:8px 14px 6px; border-bottom:1px solid var(--line); background:color-mix(in srgb, var(--weekend) 55%, var(--sheet)); position:relative; z-index:4; }
+.lab{ padding:0 14px; display:flex; flex-direction:column; justify-content:center; gap:3px; border-bottom:1px solid var(--line); min-height:74px; position:relative; z-index:4; background:var(--sheet); }
+.lab.person{ min-height:62px; }
+.lab strong{ font-size:14.5px; display:flex; align-items:center; gap:7px; }
+.lab span.en{ font-size:11.5px; color:var(--muted); }
+.who{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--muted); }
+.av{ width:18px; height:18px; border-radius:50%; background:var(--pc); color:#fff; font-size:10px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; flex:none; }
+.av.lg{ width:22px; height:22px; font-size:11px; }
+.cell{ border-bottom:1px solid var(--line); border-left:1px solid color-mix(in srgb, var(--line) 55%, transparent); }
+.cell.we{ background:var(--weekend); }
+.lane{ grid-column:2 / -1; height:0; }
+.bar{ position:absolute; height:24px; border-radius:6px; display:flex; align-items:center; padding:0 8px; font-size:11.5px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; z-index:2; }
+.bar.dev{ background:repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 22%, var(--sheet)) 0 5px, color-mix(in srgb, var(--c) 8%, var(--sheet)) 5px 10px); border:1px dashed color-mix(in srgb, var(--c) 60%, transparent); color:var(--c); }
+.bar.trial{ background:var(--c); color:#fff; }
+.bar.ongoing{ background:color-mix(in srgb, var(--c) 14%, var(--sheet)); border:1px solid color-mix(in srgb, var(--c) 55%, transparent); color:var(--c); font-weight:600; }
+.bar.task{ background:color-mix(in srgb, var(--pc) 16%, var(--sheet)); border:1px solid color-mix(in srgb, var(--pc) 45%, transparent); color:var(--ink); }
+.bar.task.idle{ background:transparent; border-style:dashed; color:var(--muted); }
+.bar.task.fixp{ background:var(--fix-bg); border-color:color-mix(in srgb, var(--fix) 45%, transparent); color:var(--fix); font-weight:600; }
+.ms{ position:absolute; width:14px; height:14px; transform:translate(-50%,-50%) rotate(45deg); border:2.5px solid var(--c); background:var(--sheet); z-index:3; }
+.ms.done{ background:var(--c); }
+.mslab{ position:absolute; transform:translateX(-50%); font-size:11px; color:var(--c); font-weight:700; white-space:nowrap; font-family:var(--font-mono); z-index:5; background:var(--sheet); padding:0 3px; border-radius:3px; }
+.band{ position:absolute; background:var(--fix-bg); border-left:2px solid color-mix(in srgb, var(--fix) 55%, transparent); border-right:2px solid color-mix(in srgb, var(--fix) 55%, transparent); z-index:1; pointer-events:none; }
+.bandlab{ position:absolute; transform:translateX(-50%); font-size:11px; font-weight:700; color:var(--fix); background:var(--sheet); padding:1px 8px; border:1px solid color-mix(in srgb, var(--fix) 45%, transparent); border-radius:20px; white-space:nowrap; z-index:5; }
+.cut{ position:absolute; width:0; border-left:2px dashed var(--fix); z-index:3; pointer-events:none; }
+.cutlab{ position:absolute; font-size:10.5px; font-weight:700; color:var(--fix); white-space:nowrap; transform:translateX(-100%); padding-right:6px; z-index:5; background:var(--sheet); border-radius:3px; }
+.today{ position:absolute; width:2px; background:var(--today); z-index:4; pointer-events:none; }
+.today::before{ content:"今天 11/8"; position:absolute; top:2px; left:5px; font-size:10.5px; font-weight:700; color:var(--today); white-space:nowrap; background:var(--sheet); padding:0 3px; border-radius:3px; }
+
+.ledger{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:720px; }
+.ledger th{ text-align:left; font-size:11.5px; letter-spacing:.06em; color:var(--faint); font-weight:500; padding:10px 14px; border-bottom:1px solid var(--line); }
+.ledger td{ padding:12px 14px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; vertical-align:top; }
+.ledger tr:last-child td{ border-bottom:0; }
+.mod{ display:inline-flex; align-items:center; gap:8px; font-weight:700; }
+.dot{ width:9px; height:9px; border-radius:50%; background:var(--c); }
+.d{ font-family:var(--font-mono); font-weight:600; }
+.wk{ color:var(--muted); font-size:12px; margin-left:4px; }
+.pill{ display:inline-block; font-size:11.5px; padding:1px 9px; border-radius:20px; background:color-mix(in srgb, var(--c) 14%, transparent); color:var(--c); font-weight:600; }
+.pill.warn{ background:var(--warn-bg); color:var(--warn-ink); }
+.notes{ display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:12px; }
+.note{ background:var(--sheet); border:1px solid var(--line); border-radius:10px; padding:14px 16px; font-size:13px; color:var(--muted); min-width:0; }
+.note b{ color:var(--ink); display:block; margin-bottom:4px; font-size:13.5px; }
+.note.warn{ background:var(--warn-bg); border-color:transparent; color:var(--warn-ink); }
+.note.warn b{ color:var(--warn-ink); }
+.cp{ --c:var(--cp); } 
+.acc-head{ display:flex; flex-direction:column; gap:4px; margin-top:12px; }
+.acc-head h2{ font-size:19px; margin:0; text-wrap:balance; }
+.acc-head p{ margin:0; color:var(--muted); font-size:13px; max-width:820px; }
+.acc-def{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; }
+.acc-def div{ background:var(--sheet); border:1px solid var(--line); border-radius:10px; padding:12px 16px; font-size:13px; color:var(--muted); }
+.acc-def b{ color:var(--ink); }
+.acc-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:14px; align-items:start; }
+.acc{ background:var(--sheet); border:1px solid var(--line); border-top:3px solid var(--c); border-radius:12px; padding:16px 18px 14px; min-width:0; }
+.acc.common{ --c:var(--muted); }
+.acc-top{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
+.acc-top h3{ margin:0; font-size:16px; color:var(--ink); display:flex; align-items:center; gap:8px; }
+.acc-meta{ font-size:12px; color:var(--muted); font-family:var(--font-mono); }
+.acc-demo{ font-size:12.5px; color:var(--muted); background:color-mix(in srgb, var(--c) 8%, var(--sheet)); border-radius:8px; padding:8px 10px; margin:6px 0 10px; }
+.acc-demo b{ color:var(--c); }
+.acc ol{ margin:0; padding-left:20px; display:flex; flex-direction:column; gap:7px; font-size:13px; line-height:1.55; }
+.acc li::marker{ color:var(--c); font-weight:700; font-family:var(--font-mono); }
+.acc li b{ color:var(--ink); }
+.ref{ display:inline-block; font-family:var(--font-mono); font-size:10.5px; color:var(--faint); border:1px solid var(--line); border-radius:4px; padding:0 4px; margin-left:4px; white-space:nowrap; }
+.acc-src{ font-size:12px; color:var(--faint); }
+.iv{ --c:var(--iv); } .rs{ --c:var(--rs); } .wt{ --c:var(--wt); } .jd{ --c:var(--jd); }
+.coral{ --pc:var(--coral); } .shaogang{ --pc:var(--shaogang); }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>HireOS 四模块开发排期</h1>
+    <p class="sub">2026 年 11 月 · 两位开发：Coral 负责面试、简历筛选、候选人端；Shaogang 负责笔试、JD 管理，11/13 全部跑通 demo 并上线试用，11/16–20 上线试用后持续修复并交付</p>
+  </header>
+
+  <div class="legend" aria-label="图例">
+    <span class="lg"><span class="sw dev"></span>开发</span>
+    <span class="lg"><span class="sw" style="background:color-mix(in srgb, var(--muted) 14%, var(--sheet));border:1px solid var(--muted)"></span>上线试用后持续修复</span>
+    <span class="lg"><span class="sw fix"></span>上线试用后持续修复与交付（11/16–20）</span>
+    <span class="lg"><span class="dia"></span>跑通 demo 并上线试用</span>
+    <span class="lg"><span class="dia solid"></span>交付使用</span>
+    <span class="lg"><span class="tl"></span>今天</span>
+  </div>
+
+  <div class="sheet">
+    <div class="gantt" id="gantt" role="img" aria-label="四个模块和两位开发 11 月 1 日至 23 日的甘特图"></div>
+  </div>
+
+  <div class="sheet">
+    <table class="ledger">
+      <thead><tr><th>模块</th><th>开发负责人</th><th>开发周期</th><th>跑通 demo 并上线试用</th><th>修复 bug</th><th>交付使用</th><th>当前状态（11/8）</th></tr></thead>
+      <tbody>
+        <tr class="iv"><td><span class="mod"><span class="dot"></span>面试</span></td><td><span class="who coral"><span class="av">C</span>Coral</span></td><td><span class="d">至 11/11</span></td><td><span class="d">11/11</span><span class="wk">周三</span></td><td><span class="d">11/12–11/20</span><span class="wk">持续修复</span></td><td><span class="d">11/20</span><span class="wk">周五</span></td><td><span class="pill">开发收尾中</span></td></tr>
+        <tr class="rs"><td><span class="mod"><span class="dot"></span>简历筛选</span></td><td><span class="who coral"><span class="av">C</span>Coral</span></td><td><span class="d">11/06–11/13</span></td><td><span class="d">11/13</span><span class="wk">周五</span></td><td><span class="d">11/16–11/20</span></td><td><span class="d">11/20</span><span class="wk">周五</span></td><td><span class="pill">开发中</span></td></tr>
+        <tr class="wt"><td><span class="mod"><span class="dot"></span>笔试</span></td><td><span class="who shaogang"><span class="av">S</span>Shaogang</span></td><td><span class="d">11/09–11/13</span></td><td><span class="d">11/13</span><span class="wk">周五</span></td><td><span class="d">11/16–11/20</span></td><td><span class="d">11/20</span><span class="wk">周五</span></td><td><span class="pill">11/9 开始</span></td></tr>
+        <tr class="jd"><td><span class="mod"><span class="dot"></span>JD 管理</span></td><td><span class="who shaogang"><span class="av">S</span>Shaogang</span></td><td><span class="d">11/11–11/13</span></td><td><span class="d">11/13</span><span class="wk">周五</span></td><td><span class="d">11/16–11/20</span></td><td><span class="d">11/20</span><span class="wk">周五</span></td><td><span class="pill">11/11 开始</span></td></tr>
+        <tr class="cp"><td><span class="mod"><span class="dot"></span>候选人端</span></td><td><span class="who coral"><span class="av">C</span>Coral</span></td><td><span class="d">11/12–11/13</span></td><td><span class="d">11/13</span><span class="wk">周五</span></td><td><span class="d">11/16–11/20</span></td><td><span class="d">11/20</span><span class="wk">周五</span></td><td><span class="pill">11/12 开始</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="notes">
+    <div class="note warn"><b>11/13 是全部跑通 demo 并上线试用的截止日</b>简历筛选、笔试、JD 和候选人端同一天跑通 demo 并上线试用，评审最好分时段安排。</div>
+    <div class="note warn"><b>11/11–13 Shaogang 并行开发两个模块</b>笔试 11/9 开始，JD 11/11 开始，两个模块都要在 11/13（周五）跑通 demo 并上线试用，JD 只有 3 个工作日，是最紧的一段。</div>
+    <div class="note"><b>11/11 面试上线试用</b>面试模块跑通 demo 并上线试用，之后边试用边持续修复，11/20 交付。</div>
+    <div class="note"><b>Coral 11/12–13 加入候选人端开发</b>这两天同时收尾简历筛选开发，11/13 跑通 demo 并上线试用；候选人端 11/13 跑通 demo 并上线试用，11/16–20 持续修 bug，11/20 交付。</div>
+    <div class="note"><b>11/16–20 上线试用后持续修复与交付</b>Shaogang 持续修笔试和 JD 的 bug，11/20（周五）一起交付；Coral 持续修简历筛选和候选人端的 bug，同时持续修面试试用中的问题，面试、简历筛选和候选人端 11/20 交付。</div>
+  </div>
+
+  <div class="acc-head">
+    <h2>各模块验收标准</h2>
+    <p>依据 4 份模块 PRD 的验收章节和当前设计稿整理。灰色小标签是 PRD 里对应的验收编号，开发和测试可按编号回查原文。</p>
+  </div>
+  <div class="acc-def">
+    <div><b>跑通 demo 并上线试用</b>：核心流程在线上环境从头到尾走通，并开放给业务人员试用，允许有小 bug。</div>
+    <div><b>交付使用</b>：下面每一条都通过，且通用验收全部满足，业务人员可以直接使用。</div>
+  </div>
+  <div class="acc-grid">
+    <section class="acc iv">
+      <div class="acc-top"><h3><span class="dot"></span>面试</h3><span class="acc-meta">Coral · 跑通 demo 并上线试用 11/11 · 交付 11/20</span></div>
+      <div class="acc-demo"><b>跑通 demo 并上线试用：</b>从创建项目到生成最终评估包，用一组演示数据在线上完整走一遍。</div>
+      <ol>
+        <li><b>创建项目：</b>上传 JD 和简历即可创建；只有面试协调人、用人经理、模块管理员能创建；文件夹、邮件导入入口隐藏</li>
+        <li><b>规划与排期：</b>设置轮次和面试官，发送邀请；支持候选人选时间、面试官接受或拒绝、改期、换面试官</li>
+        <li><b>评分标准未确认时：</b>仍可排期并提交总体结论，但逐项能力评分保持 Unknown<span class="ref">§12 JD 与权限</span></li>
+        <li><b>独立评分：</b>面试官提交评分卡前，看不到他人和 AI 的评分<span class="ref">§12 AI 与人工差异</span></li>
+        <li><b>面试结论：</b>用人经理和招聘结论确认人分别提交结论，协调人完成后生成最终评估包，可查看<span class="ref">§12 独立闭环</span></li>
+        <li><b>暂缓 / 不推进 / 补证：</b>都能完成本次评估，不自动新建轮次，不自动终止候选人申请<span class="ref">§12 Hold/Reject</span></li>
+        <li><b>首页全部面试：</b>字段、状态、跳转与设计稿一致（见已提交的 issue 清单）</li>
+      </ol>
+    </section>
+    <section class="acc rs">
+      <div class="acc-top"><h3><span class="dot"></span>简历筛选</h3><span class="acc-meta">Coral · 跑通 demo 并上线试用 11/13 · 交付 11/20</span></div>
+      <div class="acc-demo"><b>跑通 demo 并上线试用：</b>上传简历 → 确认职位关联 → 筛选评估 → 决定下一步 → 下载筛选包，线上走通。</div>
+      <ol>
+        <li><b>上传入库：</b>批量上传，单份解析失败不影响其他，可单独重试<span class="ref">SCR-06</span>；只有简历没有职位也能入库<span class="ref">SCR-25</span></li>
+        <li><b>重复与新版本：</b>同一份简历改名重复上传不重复建档；同名不同人不自动合并，生成复核任务<span class="ref">SCR-23/24</span></li>
+        <li><b>创建职位：</b>上传文件或手动输入（含语音），自动识别职位名称、要求和薪资</li>
+        <li><b>职位推荐与关联：</b>AI 推荐的职位须人工确认后才创建申请，确认后页面状态立即更新<span class="ref">SCR-26</span></li>
+        <li><b>筛选评估：</b>AI 初评分、覆盖率、匹配反馈都能定位到简历原文；未提供工作许可显示待核实，不自动拒绝<span class="ref">SCR-02/03</span></li>
+        <li><b>决定下一步：</b>推进到笔试 / 面试、暂缓、不推进、索取信息，原因必填；AI 建议推进但人工选暂缓时只保存暂缓<span class="ref">SCR-05</span>；「仅记录」不显示为推进面试</li>
+        <li><b>结果过期：</b>简历或 JD 更新后，旧结果保留并提示重新评估<span class="ref">SCR-07</span></li>
+        <li><b>筛选包：</b>查看决策页可下载筛选包；邮件发送失败不撤销已确认的结果<span class="ref">SCR-12</span></li>
+      </ol>
+    </section>
+    <section class="acc wt">
+      <div class="acc-top"><h3><span class="dot"></span>笔试</h3><span class="acc-meta">Shaogang · 跑通 demo 并上线试用 11/13 · 交付 11/20</span></div>
+      <div class="acc-demo"><b>跑通 demo 并上线试用：</b>建项目 → 出题 → 邀请候选人 → 作答提交 → 评分 → 发布结果，线上走通。</div>
+      <ol>
+        <li><b>创建项目与候选人：</b>从 HireOS 导入或手动上传；可上传或手动添加候选人，多选批量发送</li>
+        <li><b>题库：</b>可导入 ZIP、手动或 AI 创建题目；概念题不能直接发送<span class="ref">ASM-FLOW-02</span></li>
+        <li><b>邀请与规则：</b>邀请前写明 AI / 网络 / 开卷、时限和时区<span class="ref">ASM-FLOW-04</span>；候选人验证邮箱并接受后才能开始<span class="ref">ASM-FLOW-03</span></li>
+        <li><b>作答提交：</b>上传和保存草稿不算提交，明确提交并锁定后才生效<span class="ref">ASM-FLOW-05</span></li>
+        <li><b>评分：</b>评审人提交前看不到他人和 AI 的评分<span class="ref">ASM-BLIND-01</span>；必评项为 Unknown 时总分为空<span class="ref">ASM-FLOW-07</span>；人工改分保留原分和理由<span class="ref">ASM-FLOW-08</span></li>
+        <li><b>结果发布：</b>内部确认和发给候选人分开，未发布的结果候选人看不到<span class="ref">ASM-FLOW-10</span>；发布时必须明确达标或未达标<span class="ref">ASM-RESULT-01</span></li>
+        <li><b>修订与重考：</b>新开一轮作答，旧轮次保留<span class="ref">ASM-FLOW-12</span></li>
+        <li><b>推进面试：</b>交接失败时显示待交接，不回滚已确认的测评结果<span class="ref">ASM-HANDOFF-01</span></li>
+      </ol>
+    </section>
+    <section class="acc jd">
+      <div class="acc-top"><h3><span class="dot"></span>JD 管理</h3><span class="acc-meta">Shaogang · 跑通 demo 并上线试用 11/13 · 交付 11/20</span></div>
+      <div class="acc-demo"><b>跑通 demo 并上线试用：</b>创建职位 → 编辑 JD → 检查 → 提交审批 → 生效，线上走通。</div>
+      <ol>
+        <li><b>创建职位：</b>从笔记、文件、Copilot 对话等入口创建，AI 提取结构化内容，人工确认后生成草稿<span class="ref">JD-01 · AC-01</span></li>
+        <li><b>协作编辑：</b>两人同时改同一条要求时冲突可见，不静默覆盖；评论可回复和解决<span class="ref">AC-02</span></li>
+        <li><b>检查：</b>必填项缺失会阻止提交审批，选填项和建议不加门槛<span class="ref">JD-CHECK-01</span></li>
+        <li><b>审批与生效：</b>提交审批 → 审批 → 生效；重复点击只生成一个版本，未成功前不切换生效版本<span class="ref">AC-06</span>；已开放职位的重大修改需要重新审批<span class="ref">AC-07</span></li>
+        <li><b>权限：</b>普通成员不能通过 AI 读取受限薪资<span class="ref">AC-03</span>；薪酬按角色显示精确值、区间或不可见</li>
+        <li><b>内部与外部 JD：</b>外部版只显示公开内容；内部生效和外部发布状态分开显示<span class="ref">AC-17</span></li>
+        <li><b>职位库：</b>列表、筛选和搜索可用<span class="ref">JD-06</span>；职位暂停、关闭后不能发起新的招聘动作<span class="ref">AC-15</span></li>
+      </ol>
+    </section>
+    <section class="acc cp">
+      <div class="acc-top"><h3><span class="dot"></span>候选人端</h3><span class="acc-meta">Coral · 跑通 demo 并上线试用 11/13 · 交付 11/20</span></div>
+      <div class="acc-demo"><b>跑通 demo 并上线试用：</b>候选人从邀请邮件进入，完成补资料、笔试作答和面试选时间，手机上走通。</div>
+      <ol>
+        <li><b>没有自主投递入口：</b>只能通过企业发出的邀请链接进入<span class="ref">SCR-47</span></li>
+        <li><b>邀请链接：</b>验证邮箱并接受后才能访问；链接过期、被撤销或邮箱不一致时有明确提示<span class="ref">SCR-41</span></li>
+        <li><b>简历筛选补资料：</b>可填写字段、上传文件、保存草稿，提交后有回执<span class="ref">SCR-48</span></li>
+        <li><b>笔试：</b>查看规则、开始作答、上传和保存草稿、正式提交，查看已发布的结果<span class="ref">笔试 §6.1</span></li>
+        <li><b>面试：</b>选择面试时间、提议其他时间、发起改期，查看本人场次的会议入口<span class="ref">面试 §3.4.2</span></li>
+        <li><b>信息边界：</b>看不到内部评分、评语和其他候选人的信息</li>
+        <li><b>手机可用：</b>以上流程在手机浏览器上能完整操作</li>
+      </ol>
+    </section>
+    <section class="acc common">
+      <div class="acc-top"><h3>通用验收（所有模块）</h3><span class="acc-meta"></span></div>
+      
+      <ol>
+        <li><b>登录与角色：</b>邮箱验证码登录；按模块角色控制可见和可操作的内容；超级管理员能看到全部任务并有操作权限</li>
+        <li><b>首页我的任务：</b>统计卡片可筛选列表，任务按截止时间排序、逾期标红；点整行进入处理页面；只统计人工任务<span class="ref">SCR-32 · ASM-TASK-01</span></li>
+        <li><b>中英双语：</b>切到中文后，除人名、邮箱、职位标题外没有残留英文</li>
+        <li><b>外观与导航：</b>浅色 / 深色、大字号和 200% 缩放下主操作可用<span class="ref">AC-14</span>；每进入下一步都能返回上一步</li>
+        <li><b>异常处理：</b>AI 不可用、文件解析失败、下游离线时显示明确错误并可重试，不伪造结果<span class="ref">SCR-10 · AC-13</span></li>
+        <li><b>防重复：</b>重复点击、重复上传、重复提交不会生成重复记录<span class="ref">SCR-09 · AC-09</span></li>
+      </ol>
+    </section>
+  </div>
+  <p class="acc-src">PRD 原文：HireOSV2 / docs / product / 4模块完整PRD（面试 §12、简历筛选 §11、笔试 §16、JD 管理 §10–12）。</p>
+</div>
+
+<script>
+(function(){
+  const START = new Date(2026,10,1), DAYS = 23, TODAY = new Date(2026,10,8);
+  const wk = ['日','一','二','三','四','五','六'];
+  const g = document.getElementById('gantt');
+  const D = (dd) => new Date(2026,10,dd);
+  const day = d => Math.round((d - START)/864e5);
+  const owners = { coral:{name:'Coral', av:'C'}, shaogang:{name:'Shaogang', av:'S'} };
+  // seg: [kind, from, to, label]; kind dev = hatched (ends on the from-day of the demo), trial = solid
+  const mods = [
+    { k:'iv', name:'面试', en:'Interview', who:'coral', segs:[['dev',null,D(11),'开发'],['ongoing',D(12),D(20),'上线试用后持续修复']], demo:D(11), deliver:D(20) },
+    { k:'rs', name:'简历筛选', en:'Resume Screening', who:'coral', segs:[['dev',D(6),D(13),'开发'],['ongoing',D(16),D(20),'上线试用后持续修复']], demo:D(13), deliver:D(20) },
+    { k:'wt', name:'笔试', en:'Assessment', who:'shaogang', segs:[['dev',D(9),D(13),'开发'],['ongoing',D(16),D(20),'上线试用后持续修复']], demo:D(13), deliver:D(20) },
+    { k:'jd', name:'JD 管理', en:'JD Management', who:'shaogang', segs:[['dev',D(11),D(13),'开发'],['ongoing',D(16),D(20),'上线试用后持续修复']], demo:D(13), deliver:D(20) },
+    { k:'cp', name:'候选人端', en:'Candidate Portal', who:'coral', segs:[['dev',D(12),D(13),'开发'],['ongoing',D(16),D(20),'上线试用后持续修复']], demo:D(13), deliver:D(20) },
+  ];
+  const people = [
+    { k:'coral', tasks:[ [D(4),D(5),'面试开发'], [D(6),D(11),'面试 + 简历筛选开发'], [D(12),D(13),'筛选 + 候选人端'], [D(16),D(20),'三模块修复','fixp'] ] },
+    { k:'shaogang', tasks:[ [D(9),D(10),'笔试开发'], [D(11),D(13),'笔试 + JD 并行开发'], [D(16),D(20),'两模块修复与交付','fixp'] ] },
+  ];
+  const h = (tag, cls, html) => { const e=document.createElement(tag); if(cls) e.className=cls; if(html!=null) e.innerHTML=html; return e; };
+  const isWe = i => { const w=new Date(2026,10,1+i).getDay(); return w===0||w===6; };
+  const whoChip = k => `<span class="who ${k}"><span class="av">${owners[k].av}</span>${owners[k].name}</span>`;
+
+  g.appendChild(h('div','hd month','2026 · 11 月'));
+  for(let i=0;i<DAYS;i++){ const d=new Date(2026,10,1+i); g.appendChild(h('div','hd'+(isWe(i)?' we':'')+(i===day(TODAY)?' is-today':''), `<b>${d.getDate()}</b>${wk[d.getDay()]}`)); }
+  const row = (labHtml, labCls) => { const lab=h('div','lab '+labCls,labHtml); g.appendChild(lab); for(let i=0;i<DAYS;i++) g.appendChild(h('div','cell'+(isWe(i)?' we':''))); g.appendChild(h('div','lane')); return lab; };
+
+  g.appendChild(h('div','sec','按模块'));
+  mods.forEach(m=>{ m.lab = row(`<strong>${m.name}</strong><span class="en">${m.en}</span>${whoChip(m.who)}`, m.k); });
+  g.appendChild(h('div','sec','按开发人员'));
+  people.forEach(p=>{ p.lab = row(`<strong><span class="av lg">${owners[p.k].av}</span>${owners[p.k].name}</strong>`, 'person '+p.k); });
+
+  function place(){
+    const gr=g.getBoundingClientRect(), c1=g.children[1].getBoundingClientRect();
+    const x0=c1.left-gr.left, colW=c1.width, hdH=c1.height;
+    const xc = d => x0 + (day(d)+0.5)*colW, xl = d => x0 + day(d)*colW, xr = d => x0 + (day(d)+1)*colW;
+    g.querySelectorAll('.bar,.ms,.mslab,.today,.band,.bandlab,.cut,.cutlab').forEach(e=>e.remove());
+    const add = el => { g.appendChild(el); return el; };
+    const mid = lab => { const r=lab.getBoundingClientRect(); return r.top-gr.top+r.height/2; };
+    const firstTop = mods[0].lab.getBoundingClientRect().top-gr.top;
+    const lastBot = people[people.length-1].lab.getBoundingClientRect().bottom-gr.top;
+
+    const band=add(h('div','band')); band.style.left=xl(D(16))+'px'; band.style.width=(xr(D(20))-xl(D(16)))+'px'; band.style.top=firstTop+'px'; band.style.height=(lastBot-firstTop)+'px';
+    const bl=add(h('div','bandlab','11/16–20 上线试用后持续修复与交付')); bl.style.left=((xl(D(16))+xr(D(20)))/2)+'px'; bl.style.top=(firstTop-30)+'px';
+    const cut=add(h('div','cut')); cut.style.left=xr(D(13))+'px'; cut.style.top=firstTop+'px'; cut.style.height=(lastBot-firstTop)+'px';
+
+    mods.forEach(m=>{
+      const y=mid(m.lab);
+      m.segs.forEach(([kind,from,to,label])=>{
+        let a,b;
+        if(kind==='dev'){ a = from? xl(from)+3 : x0+2; b = (m.demo && +to===+m.demo) ? xc(m.demo)-10 : xr(to)-3; }
+        else { a = (+from===+m.demo) ? xc(m.demo)+9 : xl(from)+3; b = (+to===+m.deliver) ? xc(m.deliver)-9 : xr(to)-3; }
+        const bar=add(h('div','bar '+kind+' '+m.k, (b-a)>56?label:'')); bar.style.left=a+'px'; bar.style.width=Math.max(b-a,8)+'px'; bar.style.top=(y-12)+'px'; bar.title=label;
+      });
+      [m.demo?[m.demo,'',`跑通 demo 并上线试用 ${m.demo.getMonth()+1}/${m.demo.getDate()}`]:null, m.deliver?[m.deliver,' done',`交付 ${m.deliver.getMonth()+1}/${m.deliver.getDate()}`]:null].forEach((x,i)=>{ if(!x) return; const [d,cls,t]=x;
+        const s=add(h('div','ms'+cls+' '+m.k)); s.style.left=xc(d)+'px'; s.style.top=y+'px';
+        const l=add(h('div','mslab '+m.k,t)); l.style.left=xc(d)+'px'; l.style.top=(i? y+12 : y-28)+'px';
+      });
+    });
+    people.forEach(p=>{
+      const y=mid(p.lab);
+      p.tasks.forEach(([s,e,t,cls])=>{ const b=add(h('div','bar task '+p.k+(cls?' '+cls:''), t)); b.style.left=(xl(s)+3)+'px'; b.style.width=(xr(e)-xl(s)-6)+'px'; b.style.top=(y-12)+'px'; b.title=t; });
+    });
+    const cl=add(h('div','cutlab','11/13 全部跑通 demo 并上线试用')); cl.style.left=xr(D(13))+'px'; cl.style.top=(lastBot-22)+'px';
+    const t=add(h('div','today')); t.style.left=(xc(TODAY)-1)+'px'; t.style.top=hdH+'px'; t.style.height=(lastBot-hdH)+'px';
+  }
+  place(); addEventListener('resize',place); document.fonts && document.fonts.ready.then(place);
+})();
+</script>
+
+</body></html>
